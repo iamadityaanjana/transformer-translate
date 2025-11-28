@@ -6,6 +6,7 @@ from config import get_config, get_weights_file_path, latest_weights_file_path
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+import warnings
 
 from datasets import load_dataset
 from tokenizers import Tokenizer
@@ -27,7 +28,7 @@ def get_all_sentences(ds, lang):
 
 
 def get_or_build_tokenizer(config , ds , lang):
-    tokenizer_path = Path(config['tokenizer_path'].format(lang))
+    tokenizer_path = Path(config['tokenizer_file'].format(lang))
     if not Path.exists(tokenizer_path):
         # Build tokenizer
         tokenizer = Tokenizer(WordLevel(unk_token="[UNK]"))
@@ -220,7 +221,7 @@ def train_model(config):
     else:
         print('No model to preload, starting from scratch')
 
-    loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_src.token_to_id('[PAD]'), label_smoothing=0.1).to(device)
+    loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer_tgt.token_to_id('[PAD]'), label_smoothing=0.1).to(device)
 
     for epoch in range(initial_epoch, config['num_epochs']):
         torch.cuda.empty_cache()
@@ -235,7 +236,7 @@ def train_model(config):
 
             # Run the tensors through the encoder, decoder and the projection layer
             encoder_output = model.encode(encoder_input, encoder_mask) # (B, seq_len, d_model)
-            decoder_output = model.decode(encoder_output, encoder_mask, decoder_input, decoder_mask) # (B, seq_len, d_model)
+            decoder_output = model.decode(decoder_input, encoder_output, encoder_mask, decoder_mask) # (B, seq_len, d_model)
             proj_output = model.project(decoder_output) # (B, seq_len, vocab_size)
 
             # Compare the output with the label
@@ -269,3 +270,9 @@ def train_model(config):
             'optimizer_state_dict': optimizer.state_dict(),
             'global_step': global_step
         }, model_filename)
+
+
+if __name__ == '__main__':
+    warnings.filterwarnings("ignore")
+    config = get_config()
+    train_model(config)

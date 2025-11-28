@@ -23,10 +23,10 @@ class PositionalEncoding(nn.Module):
 
         #matrix of shape (seq_len,d_model)
         #Positional encoding
-        pe = torch.zeroes(seq_len,d_model) 
+        pe = torch.zeros(seq_len,d_model) 
 
         #create a vector of shape (seq_len)
-        position = torch.range(0 , seq_len , dtype=torch.float).unsqueeze(1) #(seq_len ,1)
+        position = torch.arange(0 , seq_len , dtype=torch.float).unsqueeze(1) #(seq_len ,1)
         div_term = torch.exp(torch.arange(0,d_model , 2).float() * (-math.log(10000.0)/d_model))
 
         #apply sine to even position and cosine to odd
@@ -48,7 +48,7 @@ class LayerNormalization(nn.Module):
         super().__init__()
         self.eps = eps
         self.alpha = nn.Parameter(torch.ones(1))
-        self.bias = nn.Parameter(torch.zeroes(1)) #beta
+        self.bias = nn.Parameter(torch.zeros(1)) #beta
 
     def forward(self , x):
         mean = x.mean(dim=-1 ,keepdim = True)
@@ -68,12 +68,12 @@ class FeedForward(nn.Module):
     def forward(self , x):
         #(Batch, Seq_len , d_model) --> (Batch , Seq_len , d_ff) --> (Batch , Seq_len , d_model)
         x = self.linear1(x)
-        x = self.relu(x)
+        x = torch.relu(x)
         x = self.dropout(x)
         x = self.linear2(x)
         return x
 
-class MultiHeadAttenttion(nn.Module):
+class MultiHeadAttention(nn.Module):
 
     def __init__(self , d_model:int , num_heads:int , dropout:float) -> None:
         super().__init__()
@@ -117,7 +117,7 @@ class MultiHeadAttenttion(nn.Module):
         K = K.view(K.shape[0] , K.shape[1] , self.h , self.d_k).transpose(1,2) #(B , h , Seq_len , d_k)
         V = V.view(V.shape[0] , V.shape[1] , self.h , self.d_k).transpose(1,2) #(B , h , Seq_len , d_k)
 
-        x, self.attention_score = MultiHeadAttenttion.attention(Q , K , V , mask , self.dropout) #(B , h , Seq_len , d_k)
+        x, self.attention_score = MultiHeadAttention.attention(Q , K , V , mask , self.dropout) #(B , h , Seq_len , d_k)
 
 
         # (batch , h , seq_len , d_k) --> (batch , seq_len , h , d_k) --> (batch , seq_len , d_model)
@@ -138,7 +138,7 @@ class SublayerConnection(nn.Module):
 
 class EncoderLayer(nn.Module):
 
-    def __init__(self , self_attention_block: MultiHeadAttenttion, feed_forward_block: FeedForward , dropout:float) -> None:
+    def __init__(self , self_attention_block: MultiHeadAttention, feed_forward_block: FeedForward , dropout:float) -> None:
         super().__init__()
         self.self_attention_block = self_attention_block
         self.feed_forward_block = feed_forward_block
@@ -164,7 +164,7 @@ class Encoder(nn.Module):
 
 class DecoderBlock(nn.Module):
 
-    def __init__(self , self_attention_block: MultiHeadAttenttion , cross_attention_block: MultiHeadAttenttion , feed_forward_block: FeedForward , dropout:float) -> None:
+    def __init__(self , self_attention_block: MultiHeadAttention , cross_attention_block: MultiHeadAttention , feed_forward_block: FeedForward , dropout:float) -> None:
         super().__init__()
         self.self_attention_block = self_attention_block
         self.cross_attention_block = cross_attention_block
@@ -173,7 +173,7 @@ class DecoderBlock(nn.Module):
 
     def forward(self , x , encoder_output, src_mask , tgt_mask):
         x = self.residual_connections[0](x , lambda x: self.self_attention_block(x , x , x , tgt_mask))
-        x = self.residual_connections[1](x , lambda x: self.src_attention_block(x , encoder_output , encoder_output, src_mask))
+        x = self.residual_connections[1](x , lambda x: self.cross_attention_block(x , encoder_output , encoder_output, src_mask))
         x = self.residual_connections[2](x , self.feed_forward_block)
         return x
 
@@ -197,7 +197,7 @@ class ProjectionLayer(nn.Module):
 
     def forward(self , x):
         #(batch , seq_len , d_model) --> (batch , seq_len , vocab_size)
-        return torch.l;og_softmax(self.proj(x) , dim = -1)
+        return torch.log_softmax(self.proj(x) , dim = -1)
 
 
 class Transformer(nn.Module):
@@ -234,15 +234,15 @@ def build_transformer(src_vocab_size:int , tgt_vocab_size:int , src_seq_len:int 
     #Encoder layers
     encoder_blocks = []
     for _ in range(N):
-        encoder_self_attention_block = MultiHeadAttenttion(d_model , H , dropout)
+        encoder_self_attention_block = MultiHeadAttention(d_model , H , dropout)
         feed_forward_block = FeedForward(d_model , d_ff , dropout)
         encoder_layer = EncoderLayer(encoder_self_attention_block , feed_forward_block , dropout)
         encoder_blocks.append(encoder_layer)
 
     decoder_blocks = []
     for _ in range(N):
-        decoder_self_attention_block = MultiHeadAttenttion(d_model , H , dropout)
-        cross_attention_block = MultiHeadAttenttion(d_model , H , dropout)
+        decoder_self_attention_block = MultiHeadAttention(d_model , H , dropout)
+        cross_attention_block = MultiHeadAttention(d_model , H , dropout)
         feed_forward_block = FeedForward(d_model , d_ff , dropout)
         decoder_layer = DecoderBlock(decoder_self_attention_block , cross_attention_block , feed_forward_block , dropout)
         decoder_blocks.append(decoder_layer)
