@@ -44,3 +44,22 @@ class BilingualDataset(Dataset):
                                    torch.Tensor(dec_input_tokens, dtype=torch.int64),
                                    torch.Tensor([self.pad_token_id] * dec_num_padding_tokens, dtype=torch.int64)
                                   ])
+        
+        label = torch.cat([torch.Tensor(dec_input_tokens, dtype=torch.int64),
+                           self.eos_token,
+                           torch.Tensor([self.pad_token_id] * dec_num_padding_tokens, dtype=torch.int64)
+                          ])
+        
+        assert encoder_input.shape[0] == self.seq_len
+        assert decoder_input.shape[0] == self.seq_len
+        assert label.shape[0] == self.seq_len
+
+
+        return {
+            "encoder_input": encoder_input,
+            "decoder_input": decoder_input,
+            "encoder_mask": (encoder_input != self.pad_token_id).unsqueeze(0).unsqueeze(0).int(),
+            "decoder_mask": (decoder_input != self.pad_token_id).unsqueeze(0).unsqueeze(0).int() & casual_mask(deocder_input.size(0)),
+            "label": label
+        }
+    def casual_mask(size):
