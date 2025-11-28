@@ -78,7 +78,7 @@ class MultiHeadAttenttion(nn.Module):
     def __init__(self , d_model:int , num_heads:int , dropout:float) -> None:
         super().__init__()
         self.d_model = d_model
-        self.h = num_head
+        self.h = num_heads
         assert d_model % num_heads == 0 , "d_model must be divisible by num_heads"
 
         self.d_k = d_model // num_heads
@@ -123,7 +123,7 @@ class MultiHeadAttenttion(nn.Module):
         # (batch , h , seq_len , d_k) --> (batch , seq_len , h , d_k) --> (batch , seq_len , d_model)
         x = x.transpose(1,2).contiguous().view(x.shape[0] , -1 , self.h * self.d_k) #(B , Seq_len , d_model)
 
-        return slef.w_o(x) #(B , Seq_len , d_model)
+        return self.w_o(x) #(B , Seq_len , d_model)
 
     
 class SublayerConnection(nn.Module):
@@ -151,7 +151,7 @@ class EncoderLayer(nn.Module):
 
 class Encoder(nn.Module):
 
-    def __init__(self , layer:nn.ModuleList) -> None:
+    def __init__(self , layers:nn.ModuleList) -> None:
         super().__init__()
         self.layers = layers
         self.norm = LayerNormalization()
@@ -262,4 +262,4 @@ def build_transformer(src_vocab_size:int , tgt_vocab_size:int , src_seq_len:int 
         if p.dim() > 1:
             nn.init.xavier_uniform_(p)
 
-    return transformer
+    return model
