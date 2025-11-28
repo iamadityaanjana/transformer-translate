@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+from torch.utils.data import DataLoader, Dataset
 
 from datasets import load_dataset
 from tokenizers import Tokenizer
@@ -29,3 +30,16 @@ def get_or_build_tokenizer(config , ds , lang):
 
     return tokenizer
 
+
+def get_ds(config):
+    ds_raw = load_dataset('opus_books', f'{config["lang_src"]}-{config["lang_tgt"]}', split='train')
+
+
+    #Build tokenizers
+    tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
+    tokenizer_tgt = get_or_build_tokenizer(config, ds_raw, config['lang_tgt'])
+
+    #train and val split
+    train_ds_size = int(len(ds_raw) * 0.9)
+    ds_train = ds_raw.select(range(0, train_ds_size))
+    ds_val = ds_raw.select(range(train_ds_size, len(ds_raw)))
